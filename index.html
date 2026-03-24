@@ -43,7 +43,7 @@
             pointer-events: none; 
         }
 
-        /* 0号位：使用百分比宽度和等比例缩放 */
+        /* 0号位 */
         #btn-0-wrapper {
             position: absolute;
             top: 50%; left: 15%;
@@ -64,7 +64,29 @@
             overflow: hidden; 
         }
 
-        /* 0号位播放时的暗色遮罩（保留，为了凸显进度条） */
+        /* ==========================================
+           【修改】0号图标放大发光动画，时间缩短为 0.3s
+           ========================================== */
+        @keyframes feedback-pulse {
+            0% { 
+                transform: rotate(45deg) scale(1); 
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+            }
+            50% { 
+                transform: rotate(45deg) scale(1.2); 
+                box-shadow: 0 0 20px 10px rgba(255, 204, 0, 0.9); 
+            }
+            100% { 
+                transform: rotate(45deg) scale(1); 
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+            }
+        }
+
+        .action-feedback {
+            animation: feedback-pulse 0.3s ease-out;
+        }
+
+        /* 0号位播放时的暗色遮罩 */
         .diamond-shape::after {
             content: '';
             position: absolute;
@@ -76,6 +98,19 @@
         }
         #btn-0-wrapper.disabled .diamond-shape::after {
             opacity: 1; 
+        }
+
+        /* ==========================================
+           【新增】高亮瞬间“不置灰”的动画
+           在 0.3s 的动画期间，强制透明度为 0（即全亮），动画结束恢复置灰
+           ========================================== */
+        @keyframes feedback-undim {
+            0% { opacity: 0; }
+            70% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        #btn-0-wrapper.disabled .diamond-shape.action-feedback::after {
+            animation: feedback-undim 0.3s ease-out;
         }
 
         #btn-0-icon {
@@ -143,8 +178,6 @@
             object-fit: cover;
         }
 
-        /* 【修改点】：删除了 1-5号图标的 ::after 黑色遮罩样式，使其不再置灰 */
-
         .menu-item.highlight {
             transform: translate(-50%, -50%) scale(1.2);
             border: 4px solid #3b82f6; 
@@ -182,7 +215,7 @@
     </div>
 
     <div id="btn-0-wrapper">
-        <div class="diamond-shape">
+        <div class="diamond-shape" id="btn-0-diamond">
             <img id="btn-0-icon" src="icon-0-1.png" alt="Next Video">
         </div>
         <svg id="progress-svg" viewBox="0 0 90 90">
@@ -200,6 +233,7 @@
     let hoveredItemIndex = null;
 
     const btn0 = document.getElementById('btn-0-wrapper');
+    const btn0Diamond = document.getElementById('btn-0-diamond');
     const btn0Icon = document.getElementById('btn-0-icon');
     const videoPlayer = document.getElementById('video-player');
     const radialMenu = document.getElementById('radial-menu');
@@ -225,6 +259,12 @@
         btn0Icon.src = `icon-0-${index}.png`;
     }
 
+    function triggerFeedbackAnimation() {
+        btn0Diamond.classList.remove('action-feedback');
+        void btn0Diamond.offsetWidth; 
+        btn0Diamond.classList.add('action-feedback');
+    }
+
     function playVideo(index) {
         videoPlayer.src = `video-${index}.mp4`;
         videoPlayer.style.display = 'block';
@@ -232,7 +272,6 @@
         isPlaying = true;
         
         btn0.classList.add('disabled');
-        /* 【修改点】：去掉了让 1-5号图标添加 disabled 类的代码 */
         progressSvg.style.display = 'block'; 
     }
 
@@ -247,7 +286,6 @@
     videoPlayer.addEventListener('ended', () => {
         isPlaying = false;
         btn0.classList.remove('disabled');
-        /* 【修改点】：去掉了让 1-5号图标移除 disabled 类的代码 */
         videoPlayer.style.display = 'none';
         progressPath.style.strokeDashoffset = 0;
         progressSvg.style.display = 'none'; 
@@ -325,12 +363,19 @@
         } else {
             if (hoveredItemIndex !== null) {
                 if (!isPlaying) {
+                    /* ==========================================
+                       【修改】未播放视频时，拖拽只播放，不触发高亮动画
+                       ========================================== */
                     playVideo(hoveredItemIndex);
                     nextPlayIndex = hoveredItemIndex === 5 ? 1 : hoveredItemIndex + 1;
                     updateBtn0Icon(nextPlayIndex);
                 } else {
+                    /* ==========================================
+                       【修改】播放视频时，拖拽才触发高亮动画
+                       ========================================== */
                     nextPlayIndex = hoveredItemIndex;
                     updateBtn0Icon(nextPlayIndex);
+                    triggerFeedbackAnimation(); 
                 }
             }
         }
