@@ -2,25 +2,23 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 强制禁止手机端缩放和默认行为 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>拖拽轮盘视频播放器</title>
     <style>
-        * { 
-            margin: 0; padding: 0; box-sizing: border-box; 
-            touch-action: none; /* 禁用浏览器默认手势 */
-            -webkit-tap-highlight-color: transparent; /* 去除手机点击的高亮背景 */
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        /* 全局禁用文本选中和原生触摸动作，彻底防止拖拽干扰 */
         body {
             width: 100vw; height: 100vh;
             background-color: #1a1a1a; 
             display: flex; justify-content: center; align-items: center;
             overflow: hidden;
-            user-select: none;
             -webkit-user-select: none;
+            user-select: none;
+            touch-action: none; 
         }
 
+        /* 彻底防止图片被原生拖拽 */
         img {
             -webkit-user-drag: none;
             pointer-events: none; 
@@ -36,6 +34,7 @@
             overflow: hidden;
         }
 
+        /* 视频播放区 */
         #video-player {
             position: absolute;
             top: 0; left: 0;
@@ -47,25 +46,20 @@
             pointer-events: none; 
         }
 
-        /* ================= 关键修改：0号按钮区域 ================= */
+        /* 0号位：主按钮容器 */
         #btn-0-wrapper {
             position: absolute;
             top: 50%; left: 15%;
             transform: translate(-50%, -50%);
-            /* 物理外框放大到 12%，提供巨大的触摸面积 */
-            width: 12%; 
-            aspect-ratio: 1 / 1; 
+            width: 80px; height: 80px;
             z-index: 30;
             cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
+        /* 菱形外观 */
         .diamond-shape {
             position: relative;
-            /* 视觉大小缩小到外框的 30%，保持小巧精致 */
-            width: 30%; height: 30%;
+            width: 100%; height: 100%;
             background-color: #fff;
             transform: rotate(45deg);
             display: flex; justify-content: center; align-items: center;
@@ -73,6 +67,7 @@
             overflow: hidden; 
         }
 
+        /* 0号位置灰：半透明黑色遮罩 */
         .diamond-shape::after {
             content: '';
             position: absolute;
@@ -92,10 +87,11 @@
             object-fit: cover;
         }
 
+        /* 进度条 */
         #progress-svg {
             position: absolute;
-            /* 进度条大小匹配视觉图标 */
-            width: 34%; height: 34%;
+            top: -5px; left: -5px;
+            width: 90px; height: 90px;
             pointer-events: none;
             transform: rotate(45deg);
             z-index: 31;
@@ -110,12 +106,11 @@
             transition: stroke-dashoffset 0.1s linear;
         }
 
-        /* ================= 轮盘菜单 ================= */
+        /* 轮盘菜单容器 */
         #radial-menu {
             position: absolute;
             top: 50%; left: 15%;
-            width: 18.5%; /* 保持缩小 50% 的状态 */
-            aspect-ratio: 1 / 1;
+            width: 578px; height: 578px; 
             transform: translate(-50%, -50%); 
             z-index: 20;
             display: none; 
@@ -129,10 +124,10 @@
             object-fit: contain;
         }
 
+        /* 1-5号位图标容器 */
         .menu-item {
             position: absolute;
-            width: 22%; 
-            aspect-ratio: 1 / 1;
+            width: 90px; height: 90px;
             border-radius: 50%;
             background-color: #d0d8e8;
             display: flex; justify-content: center; align-items: center;
@@ -140,7 +135,7 @@
             transition: all 0.2s;
             pointer-events: auto;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            overflow: hidden; 
+            overflow: hidden; /* 确保遮罩不超出圆形 */
         }
         
         .menu-item img {
@@ -149,6 +144,7 @@
             object-fit: cover;
         }
 
+        /* 【新增】：1-5号位置灰：半透明黑色遮罩 */
         .menu-item::after {
             content: '';
             position: absolute;
@@ -159,6 +155,7 @@
             pointer-events: none;
             border-radius: 50%;
         }
+        /* 播放时触发置灰 */
         .menu-item.disabled::after {
             opacity: 1; 
         }
@@ -189,6 +186,7 @@
         <line id="drag-line" x1="0" y1="0" x2="0" y2="0" stroke="#3b82f6" stroke-width="3" />
     </svg>
 
+    <!-- 轮盘菜单 -->
     <div id="radial-menu">
         <img class="menu-bg-img" src="lunpan.png" alt="menu background">
         
@@ -199,10 +197,12 @@
         <div class="menu-item" data-index="5"><img src="icon-5.png" alt="5"></div>
     </div>
 
+    <!-- 0号位：主按钮 -->
     <div id="btn-0-wrapper">
         <div class="diamond-shape">
             <img id="btn-0-icon" src="icon-0-1.png" alt="Next Video">
         </div>
+        <!-- 进度条 -->
         <svg id="progress-svg" viewBox="0 0 90 90">
             <path id="progress-path" d="M 85 5 L 85 85 L 5 85 L 5 5 Z" />
         </svg>
@@ -210,13 +210,13 @@
 </div>
 
 <script>
+    // 全局禁用 HTML5 原生拖拽，彻底消灭禁止符号 🚫
     document.addEventListener('dragstart', (e) => e.preventDefault());
 
     let isPlaying = false;
     let nextPlayIndex = 1; 
     let isDragging = false;
     let hoveredItemIndex = null;
-    let startX = 0, startY = 0;
 
     const btn0 = document.getElementById('btn-0-wrapper');
     const btn0Icon = document.getElementById('btn-0-icon');
@@ -229,16 +229,18 @@
     const dragLine = document.getElementById('drag-line');
     const appContainer = document.getElementById('app-container');
 
-    // 轮盘图标位置计算
-    const radiusPercent = 38; 
-    const centerPercent = 50; 
+    // 重新计算轮盘图标位置
+    const containerSize = 578;
+    const center = containerSize / 2; 
+    const radius = 235; 
+    
     menuItems.forEach((item, index) => {
         const angle = -70 + (index * (140 / 4)); 
         const rad = angle * (Math.PI / 180);
-        const x = Math.cos(rad) * radiusPercent + centerPercent; 
-        const y = Math.sin(rad) * radiusPercent + centerPercent; 
-        item.style.left = `${x}%`;
-        item.style.top = `${y}%`;
+        const x = Math.cos(rad) * radius + center; 
+        const y = Math.sin(rad) * radius + center; 
+        item.style.left = `${x}px`;
+        item.style.top = `${y}px`;
     });
 
     function updateBtn0Icon(index) {
@@ -251,8 +253,10 @@
         videoPlayer.play();
         isPlaying = true;
         
+        // 播放时：0号位和1-5号位全部加上 disabled 类（触发置灰遮罩）
         btn0.classList.add('disabled');
         menuItems.forEach(item => item.classList.add('disabled'));
+        
         progressSvg.style.display = 'block'; 
     }
 
@@ -266,29 +270,24 @@
 
     videoPlayer.addEventListener('ended', () => {
         isPlaying = false;
+        
+        // 播放结束：移除所有图标的 disabled 类（取消置灰遮罩）
         btn0.classList.remove('disabled');
         menuItems.forEach(item => item.classList.remove('disabled'));
+        
         videoPlayer.style.display = 'none';
         progressPath.style.strokeDashoffset = 0;
         progressSvg.style.display = 'none'; 
     });
 
-    // ================= 核心修复：统一获取坐标 =================
-    function getCoords(e) {
-        if (e.touches && e.touches.length > 0) {
-            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        } else if (e.changedTouches && e.changedTouches.length > 0) {
-            return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-        }
-        return { x: e.clientX, y: e.clientY };
-    }
+    let startX = 0, startY = 0;
 
-    // ================= 核心修复：事件处理逻辑 =================
-    function handleStart(e) {
-        const coords = getCoords(e);
-        startX = coords.x;
-        startY = coords.y;
+    btn0.addEventListener('pointerdown', (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
         isDragging = true;
+        
+        btn0.setPointerCapture(e.pointerId);
         
         radialMenu.style.display = 'block';
         dragLineLayer.style.display = 'block';
@@ -302,17 +301,14 @@
         dragLine.setAttribute('y1', originY);
         dragLine.setAttribute('x2', originX);
         dragLine.setAttribute('y2', originY);
-    }
+    });
 
-    function handleMove(e) {
+    window.addEventListener('pointermove', (e) => {
         if (!isDragging) return;
-        e.preventDefault(); // 强制阻止手机屏幕滑动
 
-        const coords = getCoords(e);
         const containerRect = appContainer.getBoundingClientRect();
-        const currentX = coords.x - containerRect.left;
-        const currentY = coords.y - containerRect.top;
-        
+        const currentX = e.clientX - containerRect.left;
+        const currentY = e.clientY - containerRect.top;
         dragLine.setAttribute('x2', currentX);
         dragLine.setAttribute('y2', currentY);
 
@@ -322,38 +318,36 @@
             const itemCenterX = rect.left + rect.width / 2;
             const itemCenterY = rect.top + rect.height / 2;
             
-            const dist = Math.hypot(coords.x - itemCenterX, coords.y - itemCenterY);
-            const dynamicThreshold = rect.width * 1.2; 
+            const dist = Math.hypot(e.clientX - itemCenterX, e.clientY - itemCenterY);
             
-            if (dist < dynamicThreshold) {
+            if (dist < 60) {
                 item.classList.add('highlight');
                 hoveredItemIndex = parseInt(item.getAttribute('data-index'));
             } else {
                 item.classList.remove('highlight');
             }
         });
-    }
+    });
 
-    function handleEnd(e) {
+    window.addEventListener('pointerup', (e) => {
         if (!isDragging) return;
         isDragging = false;
+        
+        try { btn0.releasePointerCapture(e.pointerId); } catch(err) {}
         
         radialMenu.style.display = 'none';
         dragLineLayer.style.display = 'none';
         menuItems.forEach(item => item.classList.remove('highlight'));
 
-        const coords = getCoords(e);
-        const moveDistance = Math.hypot(coords.x - startX, coords.y - startY);
+        const moveDistance = Math.hypot(e.clientX - startX, e.clientY - startY);
         
         if (moveDistance < 10) {
-            // 单击播放
             if (!isPlaying) {
                 playVideo(nextPlayIndex);
                 nextPlayIndex = nextPlayIndex === 5 ? 1 : nextPlayIndex + 1;
                 updateBtn0Icon(nextPlayIndex);
             }
         } else {
-            // 拖拽播放
             if (hoveredItemIndex !== null) {
                 if (!isPlaying) {
                     playVideo(hoveredItemIndex);
@@ -366,18 +360,7 @@
             }
         }
         hoveredItemIndex = null;
-    }
-
-    // ================= 核心修复：双端事件绑定 =================
-    // 电脑端鼠标事件
-    btn0.addEventListener('mousedown', handleStart);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleEnd);
-
-    // 手机端触摸事件 (passive: false 允许使用 preventDefault 阻止滑动)
-    btn0.addEventListener('touchstart', handleStart, { passive: false });
-    window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleEnd);
+    });
 
 </script>
 </body>
